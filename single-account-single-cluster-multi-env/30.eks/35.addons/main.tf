@@ -105,3 +105,40 @@ resource "null_resource" "clean_up_argocd_resources" {
   }
 }
 
+module "hashicorp-vault-eks-addon" {
+  source  = "hashicorp/hashicorp-vault-eks-addon/aws"
+  version = "1.0.0-rc2"
+
+  count = try(var.cluster_config.capabilities.vault, true) ? 1 : 0
+
+  helm_config = {
+    namespace = try(var.cluster_config.capabilities.vault_namespace, "vault")
+    version = "0.29.1"
+    values = [file("${path.module}/vault-config.yml")]
+    recreate_pods = true
+  }
+}
+
+
+module "gitlab-runners" {
+  source = "aws-ia/eks-blueprints-addon/aws"
+  version = "~> 1.0" #ensure to update this to the latest/desired version
+
+  count = try(var.cluster_config.capabilities.runners, true) ? 1 : 0
+
+  chart         = "gitlab-runner"
+  chart_version = "0.71.0"
+  repository    = "http://charts.gitlab.io/"
+  description   = "Gitlab Runners"
+  namespace     = "gitlab-runner"
+  create_namespace = true
+  
+  values = [file("${path.module}/values/gitlab-runner.yaml")]
+
+  set = [
+    {
+      name  = "replicas"
+      value = 1
+    }
+  ]
+}

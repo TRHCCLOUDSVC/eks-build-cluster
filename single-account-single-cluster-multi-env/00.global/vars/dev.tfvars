@@ -10,19 +10,27 @@ shared_config = {
 }
 
 cluster_config = {
-  kubernetes_version  = "1.29"
+  kubernetes_version  = "1.30"
   private_eks_cluster = false
+  capabilities = {
+    gitops = false
+    loadbalancing = true
+    vault = false
+    runners = true
+  }
 }
 
 # Observability variables 
 observability_configuration = {
-  aws_oss_tooling    = false
-  aws_native_tooling = false
+  aws_oss_tooling    = true
+  aws_native_tooling = true
   aws_oss_tooling_config = {
-    enable_managed_collector = false
-    enable_adot_collector    = false
+    enable_managed_collector = true
+    enable_adot_collector    = true
     prometheus_name          = "prom"
     enable_grafana_operator  = true
+    sso_region = "us-east-1"
+    sso_user   = "cpieper"
 
   }
 }
