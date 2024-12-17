@@ -51,3 +51,5 @@ global-backend-config
 # General
 .DS_Store
 .idea/
+
+*vault.md

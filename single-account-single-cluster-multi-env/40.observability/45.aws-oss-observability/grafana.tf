@@ -35,7 +35,7 @@ module "managed_grafana" {
     }
   })
 
-  grafana_version = "9.4"
+  grafana_version = "10.4"
 
   # Workspace IAM role
   create_iam_role                = true
@@ -53,7 +53,7 @@ module "managed_grafana" {
   # WARNING: https://github.com/hashicorp/terraform-provider-aws/issues/24166
   role_associations = {
     "ADMIN" = {
-      "group_ids" = [aws_identitystore_group.group[count.index].group_id]
+      "user_ids" = [data.aws_identitystore_user.user[count.index].user_id]
     }
   }
 
@@ -62,37 +62,18 @@ module "managed_grafana" {
 
 # ############################## Users,Group,Group's Membership #########################################
 
-resource "aws_identitystore_user" "user" {
+data "aws_identitystore_user" "user" {
   provider          = aws.sso
   count             = var.observability_configuration.aws_oss_tooling ? 1 : 0
   identity_store_id = tolist(data.aws_ssoadmin_instances.current.identity_store_ids)[0]
 
-  display_name = "Grafana Admin for ${terraform.workspace} env"
-  user_name    = "grafana-admin-${terraform.workspace}"
-
-
-  name {
-    family_name = "Admin"
-    given_name  = "Grafana"
-  }
-
-  emails {
-    value = "${terraform.workspace}-${var.grafana_admin_email}"
+  alternate_identifier {
+    unique_attribute {
+      attribute_path  = "UserName"
+      attribute_value = var.observability_configuration.aws_oss_tooling_config.sso_user
+    }
   }
 }
 
-resource "aws_identitystore_group" "group" {
-  provider          = aws.sso
-  count             = var.observability_configuration.aws_oss_tooling ? 1 : 0
-  identity_store_id = tolist(data.aws_ssoadmin_instances.current.identity_store_ids)[0]
-  display_name      = "grafana-admins-${terraform.workspace}"
-  description       = "Grafana Administrators for ${terraform.workspace} env"
-}
 
-resource "aws_identitystore_group_membership" "group_membership" {
-  provider          = aws.sso
-  count             = var.observability_configuration.aws_oss_tooling ? 1 : 0
-  identity_store_id = tolist(data.aws_ssoadmin_instances.current.identity_store_ids)[0]
-  group_id          = aws_identitystore_group.group[count.index].group_id
-  member_id         = aws_identitystore_user.user[count.index].user_id
-}
+
