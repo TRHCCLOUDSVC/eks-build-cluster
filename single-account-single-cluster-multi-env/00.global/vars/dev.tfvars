@@ -3,10 +3,12 @@ vpc_cidr = "10.1.0.0/16"
 
 # custom tags to apply to all resources
 tags = {
+  provisioned-by = "cpieper"
+  purpose = "training and dev"
 }
 
 shared_config = {
-  resources_prefix = "wre" // WRE = Workload Ready EKS 
+  resources_prefix = "glrunners" // WRE = Workload Ready EKS 
 }
 
 cluster_config = {
@@ -17,6 +19,14 @@ cluster_config = {
     loadbalancing = true
     vault = false
     runners = true
+  }
+
+  runners_config = {
+    namespace = "gitlab-runner"
+    version = "0.71.0"
+    cache = true
+    bucket = "gitlab-runners-cache"
+
   }
 }
 

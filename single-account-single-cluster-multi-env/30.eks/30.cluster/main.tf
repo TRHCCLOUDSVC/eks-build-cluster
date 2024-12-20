@@ -21,7 +21,7 @@ data "aws_ecrpublic_authorization_token" "token" {
 #tfsec:ignore:aws-eks-enable-control-plane-logging
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "20.24.0"
+  version = "20.31.4"
 
   cluster_name                   = local.cluster_name
   cluster_version                = local.cluster_version
@@ -272,7 +272,7 @@ module "ebs_csi_driver_irsa" {
 
 module "eks_blueprints_addons" {
   source  = "aws-ia/eks-blueprints-addons/aws"
-  version = "~> 1.16.2"
+  version = "1.19.0"
 
   cluster_name      = module.eks.cluster_name
   cluster_endpoint  = module.eks.cluster_endpoint
