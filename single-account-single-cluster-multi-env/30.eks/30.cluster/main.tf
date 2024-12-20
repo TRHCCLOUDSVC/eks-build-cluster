@@ -16,7 +16,7 @@ data "aws_iam_session_context" "current" {
 #tfsec:ignore:aws-eks-enable-control-plane-logging
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 20.31.3"
+  version = "20.31.4"
 
   cluster_name                   = local.cluster_name
   cluster_version                = local.cluster_version
@@ -241,45 +241,41 @@ module "ebs_csi_driver_irsa" {
 ################################################################################
 # EKS Auto Mode Node role access entry
 ################################################################################
-resource "aws_eks_access_entry" "automode_node" {
-  count         = local.eks_auto_mode ? 1 : 0
-  cluster_name  = module.eks.cluster_name
-  principal_arn = module.eks.node_iam_role_arn
-  type          = "EC2"
-}
 
-resource "aws_eks_access_policy_association" "automode_node" {
-  count        = local.eks_auto_mode ? 1 : 0
-  cluster_name = module.eks.cluster_name
-  access_scope {
-    type = "cluster"
+module "eks_blueprints_addons" {
+  source  = "aws-ia/eks-blueprints-addons/aws"
+  version = "1.19.0"
+
+  cluster_name      = module.eks.cluster_name
+  cluster_endpoint  = module.eks.cluster_endpoint
+  cluster_version   = module.eks.cluster_version
+  oidc_provider_arn = module.eks.oidc_provider_arn
+
+  # We want to wait for the Fargate profiles to be deployed first
+  create_delay_dependencies = [for prof in module.eks.fargate_profiles : prof.fargate_profile_arn]
+
+  # by default, Karpenter helm chart is set to not schedule Karpenter pods, on nodes it creates,
+  #  so no additional nodeSelector is needed here to ensure it'll run on the above node-groups
+  enable_karpenter = local.capabilities.autoscaling
+  karpenter = {
+    repository_username = data.aws_ecrpublic_authorization_token.token.user_name
+    repository_password = data.aws_ecrpublic_authorization_token.token.password
+    namespace           = "kube-system"
+    values              = [yamlencode(local.critical_addons_tolerations)]
   }
-  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSAutoNodePolicy"
-  principal_arn = module.eks.node_iam_role_arn
-}
-
-################################################################################
-# EKS Auto Mode default NodePools & NodeClass
-################################################################################
-data "kubectl_path_documents" "automode_manifests" {
-  count   = local.eks_auto_mode ? 1 : 0
-  pattern = "${path.module}/auto-mode/*.yaml"
-  vars = {
-    role                      = module.eks.node_iam_role_name
-    cluster_name              = local.cluster_name
-    cluster_security_group_id = module.eks.cluster_primary_security_group_id
-    environment               = terraform.workspace
+  karpenter_node = {
+    # Use static name so that it matches what is defined in `karpenter.yaml` example manifest
+    iam_role_use_name_prefix = false
   }
-  depends_on = [
-    module.eks
-  ]
+
+  tags = local.tags
+
+  depends_on = [module.eks]
 }
 
-# workaround terraform issue with attributes that cannot be determined ahead because of module dependencies
-# https://github.com/gavinbunney/terraform-provider-kubectl/issues/58
-data "kubectl_path_documents" "automode_manifests_dummy" {
-  count   = local.eks_auto_mode ? 1 : 0
-  pattern = "${path.module}/auto-mode/*.yaml"
+data "kubectl_path_documents" "karpenter_manifests" {
+  count   = local.capabilities.autoscaling ? 1 : 0
+  pattern = "${path.module}/karpenter/*.yaml"
   vars = {
     role                      = ""
     cluster_name              = ""

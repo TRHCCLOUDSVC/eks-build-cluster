@@ -2,6 +2,15 @@ data "aws_region" "current" {}
 
 data "aws_caller_identity" "current" {}
 
+# data "aws_availability_zones" "available" {}
+data "aws_iam_session_context" "current" {
+  # This data source provides information on the IAM source role of an STS assumed role
+  # For non-role ARNs, this data source simply passes the ARN through issuer ARN
+  # Ref https://github.com/terraform-aws-modules/terraform-aws-eks/issues/2327#issuecomment-1355581682
+  # Ref https://github.com/hashicorp/terraform-provider-aws/issues/28381
+  arn = data.aws_caller_identity.current.arn
+}
+
 module "eks_blueprints_addons" {
   source  = "aws-ia/eks-blueprints-addons/aws"
   version = "~> 1.16.2"
@@ -120,8 +129,8 @@ module "hashicorp-vault-eks-addon" {
 
 
 module "gitlab-runners" {
-  source = "aws-ia/eks-blueprints-addon/aws"
-  version = "~> 1.0" #ensure to update this to the latest/desired version
+  source  = "aws-ia/eks-blueprints-addon/aws"
+  version = "1.1.1"#ensure to update this to the latest/desired version
 
   count = try(var.cluster_config.capabilities.runners, true) ? 1 : 0
 
