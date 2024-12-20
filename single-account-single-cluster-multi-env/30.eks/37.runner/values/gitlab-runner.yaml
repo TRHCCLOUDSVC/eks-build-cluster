@@ -1,0 +1,61 @@
+checkInterval: 3
+concurrent: 10
+
+gitlabUrl: https://gitlab.com/
+image:
+  image: gitlab-org/gitlab-runner
+  registry: registry.gitlab.com
+  tag: ubuntu-v{{.Chart.AppVersion}}
+
+imagePullPolicy: IfNotPresent
+useTini: false
+logFormat: json
+logLevel: debug
+
+rbac:
+  create: true
+  
+replicas: 1
+
+metrics:
+  enabled: true
+  port: 9252
+  portName: metrics
+  serviceMonitor:
+    enabled: true
+service:
+  enabled: true
+  type: ClusterIP
+
+unregisterRunners: true
+terminationGracePeriodSeconds: 3600
+
+runnerToken: glrt-t2_6zYzCj_Xx3X-4Xpyg8AD
+
+runners:
+  name: "runner-manager"
+  executor: kubernetes
+  config: |
+    [[runners]]
+      [runners.kubernetes]
+        namespace = "{{.Release.Namespace}}"
+        privileged = true
+        allow_privilege_escalation = true
+        helper_image = "registry.gitlab.com/gitlab-org/gitlab-runner/gitlab-runner-helper:x86_64-v${CI_RUNNER_VERSION}"
+        helper_image_flavor = "ubuntu"
+
+serviceAccount:
+  create: true
+
+securityContext:
+  allowPrivilegeEscalation: true
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  privileged: false
+  capabilities:
+    drop: ["ALL"]
+
+podSecurityContext:
+  ## Note: values for the ubuntu image:
+  runAsUser: 999
+  fsGroup: 999
